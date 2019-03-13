@@ -38,10 +38,13 @@ import (
 
 // Ethash proof-of-work protocol constants.
 var (
-	FrontierBlockReward       = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
-	ByzantiumBlockReward      = big.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
-	ConstantinopleBlockReward = big.NewInt(2e+18) // Block reward in wei for successfully mining a block upward from Constantinople
-	maxUncles                 = 2                 // Maximum number of uncles allowed in a single block
+	FrontierBlockReward       = big.NewInt(5e+18)   // Block reward in wei for successfully mining a block
+	ByzantiumBlockReward      = big.NewInt(3e+18)   // Block reward in wei for successfully mining a block upward from Byzantium
+	ConstantinopleBlockReward = big.NewInt(2e+18)   // Block reward in wei for successfully mining a block upward from Constantinople
+	EIP1789BlockReward	      = big.NewInt(2e+18)   // Block reward in wei for successfully mining a block upward from EIP1789
+	DevFundReward 			  = big.NewInt(0)            // Block reward in wei for the Dev Fund Reward
+	DevFundRewardAddress	  = common.HexToAddress("")	// Address of the Dev Fund Reward
+ 	maxUncles                 = 2                 // Maximum number of uncles allowed in a single block
 	allowedFutureBlockTime    = 15 * time.Second  // Max time from current time allowed for blocks, before they're considered future blocks
 
 	// calcDifficultyConstantinople is the difficulty adjustment algorithm for Constantinople.
@@ -614,8 +617,13 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	if config.IsConstantinople(header.Number) {
 		blockReward = ConstantinopleBlockReward
 	}
+	if config.IsEIP1789(header.Number) {
+		blockReward = EIP1789BlockReward
+	}
+
 	// Accumulate the rewards for the miner and any included uncles
 	reward := new(big.Int).Set(blockReward)
+
 	r := new(big.Int)
 	for _, uncle := range uncles {
 		r.Add(uncle.Number, big8)
@@ -627,5 +635,8 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		r.Div(blockReward, big32)
 		reward.Add(reward, r)
 	}
+	// Miner reward
 	state.AddBalance(header.Coinbase, reward)
+	// Dev Fund Reward does not include gas
+	state.AddBalance(DevFundRewardAddress, DevFundReward)
 }
